@@ -1,0 +1,1975 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Financeiro | Allu</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* =============================================
+       DESIGN TOKENS — identidade Allu (#304d3c)
+       ============================================= */
+    :root {
+      --primary:          #304d3c;
+      --primary-light:    #4a7a5e;
+      --primary-lighter:  #6aab86;
+      --primary-lightest: #a8d5b5;
+      --primary-bg:       #f0f7f3;
+      --danger:  #dc2626;
+      --warning: #d97706;
+      --success: #16a34a;
+      --text:       #1a2e24;
+      --text-light: #5a7a68;
+      --text-muted: #8aa899;
+      --border:  #d4e8dc;
+      --bg:      #f5f8f6;
+      --card-bg: #ffffff;
+      --shadow:    0 1px 4px rgba(48,77,60,.07), 0 4px 12px rgba(48,77,60,.06);
+      --shadow-md: 0 4px 16px rgba(48,77,60,.12);
+      --radius: 12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* =============================================
+       LOGIN
+       ============================================= */
+    #login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(145deg, var(--primary) 0%, #1d3327 60%, #2e6b4f 100%);
+      padding: 24px;
+    }
+
+    .login-card {
+      background: white;
+      border-radius: 20px;
+      padding: 48px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 32px 80px rgba(0,0,0,.25);
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .logo-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      background: var(--primary);
+      border-radius: 14px;
+      margin-bottom: 14px;
+    }
+
+    .logo-mark svg { fill: white; }
+
+    .login-logo h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: -0.5px;
+    }
+
+    .login-logo p {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s;
+      background: #fafcfb;
+    }
+
+    .form-input:focus { border-color: var(--primary); background: white; }
+
+    .form-group { margin-bottom: 14px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all .15s;
+      width: 100%;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      padding: 14px;
+      font-size: 15px;
+      margin-top: 6px;
+      letter-spacing: .2px;
+    }
+
+    .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(48,77,60,.3); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-demo {
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px solid var(--border);
+      margin-top: 8px;
+    }
+
+    .btn-demo:hover { background: var(--primary-bg); }
+
+    .login-error {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+
+    .login-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 16px;
+      text-align: center;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      line-height: 1.6;
+    }
+
+    /* =============================================
+       LOADING OVERLAY
+       ============================================= */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(30, 50, 40, .88);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: white;
+      backdrop-filter: blur(4px);
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(255,255,255,.2);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .75s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #loading-text { font-size: 15px; font-weight: 600; }
+    #loading-sub  { font-size: 12px; opacity: .6; margin-top: 4px; }
+
+    /* =============================================
+       HEADER
+       ============================================= */
+    #app-header {
+      background: var(--primary);
+      color: white;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .header-brand-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--primary-lighter);
+      border-radius: 50%;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-chip {
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.15);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    #header-env-chip {
+      background: rgba(255, 193, 7, .2);
+      border-color: rgba(255, 193, 7, .4);
+      color: #ffd54f;
+    }
+
+    .btn-logout {
+      background: rgba(255,255,255,.1);
+      color: white;
+      border: 1px solid rgba(255,255,255,.2);
+      padding: 5px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .btn-logout:hover { background: rgba(255,255,255,.2); }
+
+    /* =============================================
+       DEMO BANNER
+       ============================================= */
+    #demo-banner {
+      display: none;
+      background: #fffbeb;
+      border-bottom: 1px solid #fcd34d;
+      padding: 7px 28px;
+      font-size: 12px;
+      color: #78350f;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* =============================================
+       FILTERS BAR
+       ============================================= */
+    #filters-bar {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 28px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 58px;
+      z-index: 90;
+    }
+
+    .filter-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .filter-sel {
+      padding: 6px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text);
+      background: white;
+      cursor: pointer;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .filter-sel:focus { border-color: var(--primary); }
+
+    .btn-clear-filters {
+      margin-left: auto;
+      background: var(--primary-bg);
+      color: var(--primary);
+      border: 1px solid var(--border);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-clear-filters:hover { background: #dceee5; }
+
+    /* =============================================
+       DASHBOARD MAIN CONTENT
+       ============================================= */
+    #dashboard-content {
+      padding: 24px 28px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    /* =============================================
+       SECTION HEADER
+       ============================================= */
+    .sec-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .sec-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .sec-title::before {
+      content: '';
+      display: block;
+      width: 3px;
+      height: 16px;
+      background: var(--primary);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .sec-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* =============================================
+       KPI CARDS
+       ============================================= */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 768px)  { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--primary);
+    }
+
+    .kpi-card.kpi-warning::after { background: var(--warning); }
+    .kpi-card.kpi-danger::after  { background: var(--danger); }
+    .kpi-card.kpi-success::after { background: var(--success); }
+
+    .kpi-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--primary-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .kpi-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+
+    .kpi-value {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -.5px;
+      line-height: 1.1;
+      word-break: break-all;
+    }
+
+    .kpi-value.kpi-val-warning { color: var(--warning); }
+    .kpi-value.kpi-val-danger  { color: var(--danger); }
+    .kpi-value.kpi-val-success { color: var(--success); }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    .kpi-bar-wrap {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .kpi-bar {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--primary);
+      transition: width .5s ease;
+    }
+
+    .kpi-bar.bar-warning { background: var(--warning); }
+    .kpi-bar.bar-danger  { background: var(--danger); }
+
+    /* =============================================
+       CHART GRID
+       ============================================= */
+    .charts-row {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .row-3-1 { grid-template-columns: 3fr 2fr; }
+    .row-2-2 { grid-template-columns: 1fr 1fr; }
+    .row-1-2 { grid-template-columns: 2fr 1fr; }
+
+    @media (max-width: 900px) {
+      .row-3-1, .row-2-2, .row-1-2 { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 270px;
+    }
+
+    .chart-wrap.tall { height: 310px; }
+
+    /* =============================================
+       RANKING LISTS
+       ============================================= */
+    .ranking-scroll { max-height: 270px; overflow-y: auto; }
+
+    .ranking-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ranking-item:last-child { border-bottom: none; }
+
+    .rank-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--primary-bg);
+      color: var(--primary);
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .rank-name {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .rank-bar-wrap {
+      width: 60px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .rank-bar {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+
+    .rank-amount {
+      min-width: 96px;
+      text-align: right;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* =============================================
+       TABLE CARD
+       ============================================= */
+    .table-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 14px;
+      gap: 0;
+    }
+
+    .tab-btn {
+      padding: 7px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color .15s, border-color .15s;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-btn:hover:not(.active) { color: var(--primary-light); }
+
+    .tbl-wrap { overflow-x: auto; }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table th {
+      padding: 9px 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text-muted);
+      text-align: left;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+      background: #fafcfb;
+    }
+
+    .data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .data-table tbody tr:hover td { background: var(--primary-bg); }
+
+    .tbl-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .pagination { display: flex; gap: 4px; }
+
+    .pg-btn {
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: white;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text);
+      transition: all .1s;
+    }
+
+    .pg-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .pg-btn:hover:not(.active) { background: var(--primary-bg); }
+
+    /* =============================================
+       BADGES
+       ============================================= */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .b-green  { background: #dcfce7; color: #15803d; }
+    .b-yellow { background: #fef9c3; color: #854d0e; }
+    .b-red    { background: #fef2f2; color: #b91c1c; }
+    .b-blue   { background: #eff6ff; color: #1d4ed8; }
+    .b-gray   { background: #f3f4f6; color: #4b5563; }
+    .b-purple { background: #f3e8ff; color: #6b21a8; }
+    .b-teal   { background: #f0fdf4; color: #15803d; }
+
+    .amt-out { color: #dc2626; font-weight: 700; }
+    .amt-in  { color: #16a34a; font-weight: 700; }
+
+    /* =============================================
+       EMPTY STATE
+       ============================================= */
+    .empty {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
+    .empty p { font-size: 13px; }
+
+    /* =============================================
+       NOTIFICATION
+       ============================================= */
+    #notif {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--primary);
+      color: white;
+      padding: 11px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: var(--shadow-md);
+      z-index: 9998;
+      transform: translateY(80px);
+      transition: transform .25s ease;
+      max-width: 320px;
+    }
+
+    #notif.show { transform: translateY(0); }
+
+    /* =============================================
+       MISC
+       ============================================= */
+    .merchant-cell { max-width: 220px; }
+    .merchant-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .merchant-type { font-size: 11px; color: var(--text-muted); }
+
+    .card-cell small { font-size: 11px; color: var(--text-muted); }
+
+    .limit-rule-box {
+      background: var(--primary-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--text-light);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     LOADING OVERLAY
+     ============================================================ -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p id="loading-text">Carregando...</p>
+  <small id="loading-sub"></small>
+</div>
+
+<!-- ============================================================
+     NOTIFICATION
+     ============================================================ -->
+<div id="notif"></div>
+
+<!-- ============================================================
+     LOGIN SCREEN
+     ============================================================ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-mark">
+        <svg width="28" height="28" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+      </div>
+      <h1>allu</h1>
+      <p>Dashboard Financeiro de Cartões Corporativos</p>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">API Key</label>
+        <input class="form-input" type="text" id="inp-apikey" placeholder="sua_api_key" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">API Secret</label>
+        <input class="form-input" type="password" id="inp-apisecret" placeholder="••••••••" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Limite Total (R$)</label>
+        <input class="form-input" type="number" id="inp-limit" value="11300000" placeholder="11300000" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Período</label>
+        <select class="form-input" id="inp-months">
+          <option value="3">3 meses</option>
+          <option value="6" selected>6 meses</option>
+          <option value="9">9 meses</option>
+          <option value="12">12 meses</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="startLogin()">
+      &#8594; Acessar Dashboard
+    </button>
+    <button class="btn btn-demo" onclick="loadDemoMode()">
+      Usar modo demonstração (dados fictícios)
+    </button>
+
+    <div class="login-error" id="login-error"></div>
+
+    <p class="login-hint">
+      API: <strong>Conta Simples</strong> · Sandbox: api-sandbox.contasimples.com<br>
+      Credenciais OAuth 2.0 Client Credentials
+    </p>
+  </div>
+</div>
+
+<!-- ============================================================
+     DASHBOARD
+     ============================================================ -->
+<div id="dashboard" style="display:none">
+
+  <!-- HEADER -->
+  <header id="app-header">
+    <div class="header-brand">
+      <div class="header-brand-dot"></div>
+      allu
+    </div>
+    <div class="header-right">
+      <span class="header-chip" id="header-chip">Dashboard Financeiro</span>
+      <span class="header-chip" id="header-env-chip" style="display:none">SANDBOX</span>
+      <button class="btn-logout" onclick="logout()">Sair</button>
+    </div>
+  </header>
+
+  <!-- DEMO BANNER -->
+  <div id="demo-banner">
+    ⚠ Modo demonstração ativo — dados gerados artificialmente para fins de visualização
+  </div>
+
+  <!-- FILTERS BAR -->
+  <div id="filters-bar">
+    <span class="filter-label">Filtros</span>
+    <select id="f-comp"    class="filter-sel" onchange="applyFilters()"><option value="">Competência</option></select>
+    <select id="f-card"    class="filter-sel" onchange="applyFilters()"><option value="">Todos os cartões</option></select>
+    <select id="f-cat"     class="filter-sel" onchange="applyFilters()"><option value="">Todas as categorias</option></select>
+    <select id="f-cc"      class="filter-sel" onchange="applyFilters()"><option value="">Todos os centros de custo</option></select>
+    <select id="f-resp"    class="filter-sel" onchange="applyFilters()"><option value="">Todos os responsáveis</option></select>
+    <button class="btn-clear-filters" onclick="clearFilters()">✕ Limpar</button>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="dashboard-content">
+
+    <!-- REGRA DE LIMITE -->
+    <div class="limit-rule-box">
+      <span>&#9432;</span>
+      <span>
+        <strong>Regra de limite:</strong>
+        Limite disponível = Limite total − Gasto na competência atual − Parcelas futuras comprometidas
+      </span>
+    </div>
+
+    <!-- KPI SECTION -->
+    <div class="sec-header">
+      <h2 class="sec-title">Visão Geral — <span id="comp-label">...</span></h2>
+    </div>
+    <div class="kpi-grid" id="kpi-grid"><!-- via JS --></div>
+
+    <!-- CHART ROW 1: Evolução mensal + Categorias -->
+    <div class="charts-row row-3-1">
+      <div class="chart-card">
+        <div class="sec-header">
+          <h3 class="sec-title">Evolução Mensal de Gastos</h3>
+          <span class="sec-sub">6 meses — valores realizados</span>
+        </div>
+        <div class="chart-wrap"><canvas id="c-monthly"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="sec-header"><h3 class="sec-title">Gastos por Categoria</h3></div>
+        <div class="chart-wrap"><canvas id="c-category"></canvas></div>
+      </div>
+    </div>
+
+    <!-- CHART ROW 2: Centro de custo + Fornecedores -->
+    <div class="charts-row row-2-2">
+      <div class="chart-card">
+        <div class="sec-header"><h3 class="sec-title">Gastos por Centro de Custo</h3></div>
+        <div class="chart-wrap"><canvas id="c-costcenter"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="sec-header">
+          <h3 class="sec-title">Top 10 Fornecedores</h3>
+          <span class="sec-sub" id="supplier-period"></span>
+        </div>
+        <div class="ranking-scroll" id="ranking-suppliers"><!-- via JS --></div>
+      </div>
+    </div>
+
+    <!-- CHART ROW 3: Comprometimento futuro + CC ranking -->
+    <div class="charts-row row-2-2">
+      <div class="chart-card">
+        <div class="sec-header">
+          <h3 class="sec-title">Comprometimento Futuro do Limite</h3>
+          <span class="sec-sub">Realizados vs Parcelas futuras</span>
+        </div>
+        <div class="chart-wrap"><canvas id="c-future"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="sec-header">
+          <h3 class="sec-title">Top Centros de Custo</h3>
+          <span class="sec-sub" id="cc-period"></span>
+        </div>
+        <div class="ranking-scroll" id="ranking-cc"><!-- via JS --></div>
+      </div>
+    </div>
+
+    <!-- TRANSACTIONS TABLE -->
+    <div class="table-card">
+      <div class="sec-header">
+        <h3 class="sec-title">Transações</h3>
+        <span class="sec-sub" id="txn-count-lbl"></span>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('all')">Todas</button>
+        <button class="tab-btn" onclick="switchTab('installments')">Parceladas</button>
+        <button class="tab-btn" onclick="switchTab('future')">Futuras</button>
+        <button class="tab-btn" onclick="switchTab('canceled')">Canceladas</button>
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Estabelecimento</th>
+              <th>Responsável</th>
+              <th>Cartão</th>
+              <th>Categoria</th>
+              <th>Centro de Custo</th>
+              <th>Parcela</th>
+              <th>Status</th>
+              <th style="text-align:right">Valor</th>
+            </tr>
+          </thead>
+          <tbody id="txn-tbody"><!-- via JS --></tbody>
+        </table>
+      </div>
+
+      <div class="tbl-footer">
+        <span id="txn-footer-lbl"></span>
+        <div class="pagination" id="txn-pages"></div>
+      </div>
+    </div>
+
+    <!-- INSTALLMENTS ANALYSIS TABLE -->
+    <div class="table-card">
+      <div class="sec-header">
+        <h3 class="sec-title">Análise de Compras Parceladas</h3>
+        <span class="sec-sub">Impacto nas próximas faturas</span>
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Estabelecimento</th>
+              <th>Responsável</th>
+              <th>Cartão</th>
+              <th>Parcela Atual</th>
+              <th>Total</th>
+              <th style="text-align:right">Vlr/Parcela</th>
+              <th style="text-align:right">Total Pago</th>
+              <th style="text-align:right">Restante</th>
+              <th style="text-align:right">Próxima Fatura</th>
+            </tr>
+          </thead>
+          <tbody id="inst-tbody"><!-- via JS --></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /dashboard-content -->
+</div><!-- /dashboard -->
+
+<script>
+/* ============================================================
+   CONSTANTS & STATE
+   ============================================================ */
+const API_BASE = 'https://api-sandbox.contasimples.com';
+
+const S = {
+  token:        null,
+  tokenExpiry:  0,
+  apiKey:       '',
+  apiSecret:    '',
+  totalLimit:   11300000,
+  allTxns:      [],  /* all raw transactions fetched */
+  filtTxns:     [],  /* after filter application */
+  isDemo:       false,
+  tab:          'all',
+  page:         1,
+  pageSize:     25,
+  filters: { comp: '', card: '', cat: '', cc: '', resp: '' }
+};
+
+let CHARTS = {};
+
+/* Brand color ramp */
+const PALETTE = [
+  '#304d3c','#3d6b51','#4a7a5e','#52966e','#6aab86',
+  '#7abf94','#a8d5b5','#c3e5ce','#1d3327','#2e6b4f',
+  '#598f6d','#75b38a','#91d6a7','#d4e8dc','#e8f4ec'
+];
+
+/* ============================================================
+   FORMAT HELPERS
+   ============================================================ */
+const fmt = {
+  brl:  v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0),
+  date: d => new Date(d).toLocaleDateString('pt-BR',{timeZone:'UTC'}),
+  pct:  v => (v*100).toFixed(1)+'%',
+  /** Returns 'YYYY-MM' from any ISO date string */
+  ym: d => {
+    const dt = new Date(d);
+    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}`;
+  },
+  /** 'YYYY-MM' → 'Janeiro 2025' */
+  compLabel: ym => {
+    const [y,m] = ym.split('-').map(Number);
+    return new Date(y, m-1, 1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  },
+  /** 'YYYY-MM' → short 'Jan 25' */
+  shortMonth: ym => {
+    const [y,m] = ym.split('-').map(Number);
+    return new Date(y,m-1,1).toLocaleDateString('pt-BR',{month:'short',year:'2-digit'});
+  },
+  /** Add N months to 'YYYY-MM' */
+  addMonth: (ym, n) => {
+    const [y,m] = ym.split('-').map(Number);
+    const d = new Date(y, m-1+n, 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+};
+
+/* ============================================================
+   UI HELPERS
+   ============================================================ */
+function showLoading(text='Carregando...', sub='') {
+  document.getElementById('loading-overlay').style.display = 'flex';
+  document.getElementById('loading-text').textContent = text;
+  document.getElementById('loading-sub').textContent  = sub;
+}
+function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
+
+function notify(msg, ms=3000) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function showErr(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function currentYM() {
+  return today().slice(0,7); /* 'YYYY-MM' */
+}
+
+/* ============================================================
+   AUTHENTICATION
+   ============================================================ */
+async function authenticate() {
+  const creds = btoa(`${S.apiKey}:${S.apiSecret}`);
+  const res = await fetch(`${API_BASE}/oauth/v1/access-token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${creds}`,
+      'Content-Type':  'application/x-www-form-urlencoded'
+    },
+    body: 'grant_type=client_credentials'
+  });
+  if (!res.ok) throw new Error(`Autenticação falhou (${res.status})`);
+  const { access_token, expires_in } = await res.json();
+  S.token = access_token;
+  S.tokenExpiry = Date.now() + (expires_in - 60) * 1000;
+}
+
+async function ensureToken() {
+  if (!S.token || Date.now() >= S.tokenExpiry) await authenticate();
+}
+
+/* ============================================================
+   API: FETCH TRANSACTIONS (single chunk, all pages)
+   ============================================================ */
+async function fetchChunk(startDate, endDate) {
+  const txns = [];
+  let cursor = null;
+  let pageN  = 0;
+  do {
+    pageN++;
+    showLoading(
+      'Buscando transações...',
+      `${startDate} → ${endDate} · pág. ${pageN}`
+    );
+    await ensureToken();
+    const body = { startDate, endDate, limit: 100 };
+    if (cursor) body.nextPageStartKey = cursor;
+    const res = await fetch(`${API_BASE}/statements/v1/credit-card`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${S.token}`,
+        'Content-Type':  'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error(`Erro na API (${res.status})`);
+    const data = await res.json();
+    txns.push(...(data.transactions || []));
+    cursor = data.nextPageStartKey || null;
+  } while (cursor);
+  return txns;
+}
+
+/* ============================================================
+   API: FETCH MULTIPLE CHUNKS (handles 62-day limit)
+   Fetches from (monthsBack) months ago to 3 months ahead.
+   ============================================================ */
+async function fetchAll(monthsBack = 6) {
+  /* Build date range */
+  const todayStr = today();
+  const start = new Date();
+  start.setMonth(start.getMonth() - monthsBack);
+  start.setDate(1);
+
+  const end = new Date();
+  end.setMonth(end.getMonth() + 3); /* +3 months ahead to capture future installments */
+
+  /* Split into ≤60-day chunks */
+  const chunks = [];
+  let cur = new Date(start);
+  while (cur < end) {
+    const chunkEnd = new Date(cur);
+    chunkEnd.setDate(chunkEnd.getDate() + 59);
+    if (chunkEnd > end) chunkEnd.setTime(end.getTime());
+    chunks.push({
+      s: cur.toISOString().slice(0,10),
+      e: chunkEnd.toISOString().slice(0,10)
+    });
+    cur = new Date(chunkEnd);
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  /* Fetch all chunks in sequence (token may expire between chunks) */
+  const all = [];
+  for (const c of chunks) {
+    const txns = await fetchChunk(c.s, c.e);
+    all.push(...txns);
+  }
+
+  /* Deduplicate by ID */
+  const seen = new Set();
+  return all.filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true; });
+}
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+async function startLogin() {
+  const apiKey    = document.getElementById('inp-apikey').value.trim();
+  const apiSecret = document.getElementById('inp-apisecret').value.trim();
+  const limit     = parseFloat(document.getElementById('inp-limit').value) || 0;
+  const months    = parseInt(document.getElementById('inp-months').value);
+
+  if (!apiKey || !apiSecret) { showErr('Informe API Key e API Secret.'); return; }
+
+  S.apiKey     = apiKey;
+  S.apiSecret  = apiSecret;
+  S.totalLimit = limit;
+  S.isDemo     = false;
+
+  try {
+    showLoading('Autenticando...');
+    await authenticate();
+    S.allTxns = await fetchAll(months);
+    hideLoading();
+    document.getElementById('header-env-chip').style.display = '';
+    initDashboard();
+  } catch(err) {
+    hideLoading();
+    showErr(`Erro: ${err.message}`);
+  }
+}
+
+function logout() {
+  S.token = null;
+  S.allTxns = [];
+  Object.values(CHARTS).forEach(c => c && c.destroy && c.destroy());
+  CHARTS = {};
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('demo-banner').style.display = 'none';
+  document.getElementById('header-env-chip').style.display = 'none';
+}
+
+/* ============================================================
+   DEMO DATA GENERATOR
+   ============================================================ */
+function generateDemo() {
+  const merchants = [
+    'UBER *TRIP','99 TAXI','IFOOD*RESTAURANTE','RAPPI BRASIL',
+    'AMAZON.COM.BR','SHOPEE BRASIL','MERCADO LIVRE',
+    'MICROSOFT AZURE','GOOGLE *CLOUD','AWS BRASIL','DATADOG',
+    'POSTO IPIRANGA','SHELL COMBUSTIVEIS',
+    'SUPERMERCADO EXTRA','CARREFOUR MARKET','PAGUE MENOS',
+    'HOTEL IBIS SP','LATAM AIRLINES','GOL LINHAS AEREAS',
+    'BOOKING.COM','AIRBNB','CINEMARK','INGRESSO.COM',
+    'KABUM COMERCIO','MAGAZINELUIZA','NETSHOES'
+  ];
+  const categories = [
+    {id:'c01',name:'Transporte'},{id:'c02',name:'Alimentação'},
+    {id:'c03',name:'Tecnologia'},{id:'c04',name:'Combustível'},
+    {id:'c05',name:'Viagem'},{id:'c06',name:'Entretenimento'},
+    {id:'c07',name:'Saúde'},{id:'c08',name:'Material de Escritório'},
+    {id:'c09',name:'Publicidade'},{id:'c10',name:'Outros'}
+  ];
+  const ccs = [
+    {id:'cc01',name:'Comercial'},{id:'cc02',name:'Tecnologia'},
+    {id:'cc03',name:'Financeiro'},{id:'cc04',name:'RH'},
+    {id:'cc05',name:'Marketing'},{id:'cc06',name:'Operações'}
+  ];
+  const cards = [
+    {id:'card01',maskedNumber:'**** **** **** 1234',responsibleName:'João Silva',responsibleEmail:'joao@empresa.com',type:'VIRTUAL'},
+    {id:'card02',maskedNumber:'**** **** **** 5678',responsibleName:'Maria Santos',responsibleEmail:'maria@empresa.com',type:'PHYSICAL'},
+    {id:'card03',maskedNumber:'**** **** **** 9012',responsibleName:'Carlos Oliveira',responsibleEmail:'carlos@empresa.com',type:'VIRTUAL'},
+    {id:'card04',maskedNumber:'**** **** **** 3456',responsibleName:'Ana Lima',responsibleEmail:'ana@empresa.com',type:'VIRTUAL'},
+    {id:'card05',maskedNumber:'**** **** **** 7890',responsibleName:'Pedro Costa',responsibleEmail:'pedro@empresa.com',type:'PHYSICAL'}
+  ];
+
+  const rand  = (a, b) => Math.random()*(b-a)+a;
+  const pick  = arr => arr[Math.floor(Math.random()*arr.length)];
+  const round = v => Math.round(v*100)/100;
+
+  const txns = [];
+  let id = 1;
+
+  const now = new Date();
+  const nowYM = currentYM();
+
+  /* Generate transactions for past 7 months */
+  for (let mo = -6; mo <= 0; mo++) {
+    const cnt = Math.floor(rand(18, 40));
+    for (let i = 0; i < cnt; i++) {
+      const day = Math.floor(rand(1, 28));
+      const dt  = new Date(now.getFullYear(), now.getMonth()+mo, day);
+      const card = pick(cards);
+      const cat  = pick(categories);
+      const cc   = pick(ccs);
+      const merch = pick(merchants);
+      const amt   = round(rand(50, 8000));
+      const isCan = Math.random() < 0.04;
+      /* 18% chance of installment purchase */
+      const isInst = !isCan && Math.random() < 0.18;
+      const numInst = isInst ? Math.floor(rand(2, 13)) : 1;
+      const pid = `purchase_${id}`;
+
+      if (isInst) {
+        for (let inst = 1; inst <= numInst; inst++) {
+          const instDt = new Date(dt.getFullYear(), dt.getMonth()+(inst-1), dt.getDate());
+          txns.push({
+            id: `txn_${String(id++).padStart(6,'0')}`,
+            operation: 'CASH_OUT',
+            transactionDate: instDt.toISOString(),
+            status: instDt > now ? 'PENDING' : 'PROCESSED',
+            type: 'PURCHASE',
+            merchant: `${merch} (${inst}/${numInst})`,
+            amountBrl: round(amt/numInst),
+            exchangeRateUsd: 0,
+            isCanceled: false,
+            isConciled: instDt <= now,
+            installment: inst,
+            card, category: cat, costCenter: cc, attachments: [],
+            _instTotal: numInst,
+            _purchaseId: pid
+          });
+        }
+      } else {
+        txns.push({
+          id: `txn_${String(id++).padStart(6,'0')}`,
+          operation: isCan ? 'CASH_IN' : 'CASH_OUT',
+          transactionDate: dt.toISOString(),
+          status: isCan ? 'CANCELED' : 'PROCESSED',
+          type: isCan ? 'REFUND' : 'PURCHASE',
+          merchant: merch,
+          amountBrl: amt,
+          exchangeRateUsd: 0,
+          isCanceled: isCan,
+          isConciled: !isCan,
+          installment: 1,
+          card, category: cat, costCenter: cc, attachments: []
+        });
+      }
+    }
+  }
+  return txns;
+}
+
+function loadDemoMode() {
+  S.isDemo     = true;
+  S.totalLimit = 11300000;
+  S.allTxns    = generateDemo();
+  document.getElementById('demo-banner').style.display = 'flex';
+  initDashboard();
+}
+
+/* ============================================================
+   INIT DASHBOARD
+   ============================================================ */
+function initDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  populateFilters();
+  autoSelectComp();
+  applyFilters();
+}
+
+/* ============================================================
+   FILTERS
+   ============================================================ */
+function populateFilters() {
+  const txns = S.allTxns;
+
+  /* Competencies (past + current only) */
+  const nowYM = currentYM();
+  const comps = [...new Set(txns.map(t => fmt.ym(t.transactionDate)))]
+    .filter(c => c <= nowYM)
+    .sort();
+  sel('f-comp').innerHTML =
+    '<option value="">Todas as competências</option>' +
+    comps.map(c => `<option value="${c}">${fmt.compLabel(c)}</option>`).join('');
+
+  /* Cards */
+  const cardMap = new Map(txns.map(t => [t.card.id, t.card]));
+  sel('f-card').innerHTML =
+    '<option value="">Todos os cartões</option>' +
+    [...cardMap.values()].map(c =>
+      `<option value="${c.id}">${c.maskedNumber} — ${c.responsibleName}</option>`
+    ).join('');
+
+  /* Categories */
+  const catMap = new Map(txns.filter(t=>t.category).map(t=>[t.category.id, t.category]));
+  sel('f-cat').innerHTML =
+    '<option value="">Todas as categorias</option>' +
+    [...catMap.values()].map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+  /* Cost Centers */
+  const ccMap = new Map(txns.filter(t=>t.costCenter).map(t=>[t.costCenter.id, t.costCenter]));
+  sel('f-cc').innerHTML =
+    '<option value="">Todos os centros de custo</option>' +
+    [...ccMap.values()].map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+  /* Responsibles */
+  const respMap = new Map(txns.map(t=>[t.card.responsibleEmail, t.card.responsibleName]));
+  sel('f-resp').innerHTML =
+    '<option value="">Todos os responsáveis</option>' +
+    [...respMap.entries()].map(([e,n]) => `<option value="${e}">${n}</option>`).join('');
+}
+
+function sel(id) { return document.getElementById(id); }
+
+function autoSelectComp() {
+  /* Find latest competency that has processed CASH_OUT transactions */
+  const nowYM = currentYM();
+  const comps = [...new Set(
+    S.allTxns
+      .filter(t => !t.isCanceled && t.operation==='CASH_OUT' && fmt.ym(t.transactionDate) <= nowYM)
+      .map(t => fmt.ym(t.transactionDate))
+  )].sort();
+  const latest = comps[comps.length-1] || nowYM;
+  sel('f-comp').value = latest;
+  S.filters.comp = latest;
+}
+
+function clearFilters() {
+  S.filters = { comp:'', card:'', cat:'', cc:'', resp:'' };
+  ['f-comp','f-card','f-cat','f-cc','f-resp'].forEach(id => sel(id).value = '');
+  applyFilters();
+}
+
+function applyFilters() {
+  S.filters.comp = sel('f-comp').value;
+  S.filters.card = sel('f-card').value;
+  S.filters.cat  = sel('f-cat').value;
+  S.filters.cc   = sel('f-cc').value;
+  S.filters.resp = sel('f-resp').value;
+
+  S.filtTxns = S.allTxns.filter(t => {
+    if (S.filters.comp && fmt.ym(t.transactionDate) !== S.filters.comp) return false;
+    if (S.filters.card && t.card.id !== S.filters.card) return false;
+    if (S.filters.cat  && (!t.category   || t.category.id   !== S.filters.cat))  return false;
+    if (S.filters.cc   && (!t.costCenter || t.costCenter.id !== S.filters.cc))   return false;
+    if (S.filters.resp && t.card.responsibleEmail !== S.filters.resp) return false;
+    return true;
+  });
+
+  S.page = 1;
+  renderAll();
+}
+
+/* ============================================================
+   FINANCIAL HELPERS
+   ============================================================ */
+
+/** Active outgoing transactions (not canceled, CASH_OUT) */
+function active(txns) {
+  return txns.filter(t => !t.isCanceled && t.operation === 'CASH_OUT');
+}
+
+/** Sum of active CASH_OUT in filtered set (current competency) */
+function sumActive(txns) {
+  return active(txns).reduce((s,t) => s + t.amountBrl, 0);
+}
+
+/** Sum of future installments (> current competency) from ALL transactions */
+function sumFuture() {
+  const comp = S.filters.comp || currentYM();
+  return active(S.allTxns)
+    .filter(t => fmt.ym(t.transactionDate) > comp)
+    .reduce((s,t) => s + t.amountBrl, 0);
+}
+
+/** Projection for next invoice */
+function projNextInvoice() {
+  const comp = S.filters.comp || currentYM();
+  const next = fmt.addMonth(comp, 1);
+  return active(S.allTxns)
+    .filter(t => fmt.ym(t.transactionDate) === next)
+    .reduce((s,t) => s + t.amountBrl, 0);
+}
+
+/* ============================================================
+   RENDER DISPATCHER
+   ============================================================ */
+function renderAll() {
+  /* Competency label */
+  const comp = S.filters.comp;
+  sel('comp-label').textContent = comp ? fmt.compLabel(comp) : 'Todas as competências';
+
+  renderKPIs();
+  renderCharts();
+  renderTxnTable();
+  renderInstTable();
+}
+
+/* ============================================================
+   KPI CARDS
+   ============================================================ */
+function renderKPIs() {
+  const spend  = sumActive(S.filtTxns);
+  const future = sumFuture();
+  const nextInv= projNextInvoice();
+  const total  = S.totalLimit;
+  const used   = spend + future;
+  const avail  = total - used;
+  const pct    = total > 0 ? used / total : 0;
+
+  const util   = pct > .9 ? 'danger' : pct > .7 ? 'warning' : '';
+  const availC = avail < 0 ? 'danger' : 'success';
+
+  sel('kpi-grid').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-icon">💳</div>
+      <div class="kpi-label">Gasto na Competência</div>
+      <div class="kpi-value">${fmt.brl(spend)}</div>
+      <div class="kpi-sub">${comp ? fmt.compLabel(comp) : 'Acumulado total'}</div>
+    </div>
+
+    <div class="kpi-card kpi-warning">
+      <div class="kpi-icon">⏳</div>
+      <div class="kpi-label">Parcelas Futuras</div>
+      <div class="kpi-value kpi-val-warning">${fmt.brl(future)}</div>
+      <div class="kpi-sub">Comprometimento do limite</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon">📋</div>
+      <div class="kpi-label">Projeção Próxima Fatura</div>
+      <div class="kpi-value">${fmt.brl(nextInv)}</div>
+      <div class="kpi-sub">${comp ? fmt.compLabel(fmt.addMonth(comp,1)) : '—'}</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon">🏦</div>
+      <div class="kpi-label">Limite Total</div>
+      <div class="kpi-value">${fmt.brl(total)}</div>
+      <div class="kpi-sub">Configurado na entrada</div>
+    </div>
+
+    <div class="kpi-card kpi-${util||''}">
+      <div class="kpi-icon">📊</div>
+      <div class="kpi-label">Limite Utilizado</div>
+      <div class="kpi-value kpi-val-${util||''}">${fmt.brl(used)}</div>
+      <div class="kpi-sub">${fmt.pct(pct)} do limite total</div>
+      <div class="kpi-bar-wrap">
+        <div class="kpi-bar bar-${util||''}" style="width:${Math.min(pct*100,100).toFixed(1)}%"></div>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-${availC}">
+      <div class="kpi-icon">${avail < 0 ? '🔴' : '✅'}</div>
+      <div class="kpi-label">Limite Disponível</div>
+      <div class="kpi-value kpi-val-${availC}">${fmt.brl(avail)}</div>
+      <div class="kpi-sub">Limite − Atual − Futuras</div>
+    </div>
+  `;
+}
+
+/* ============================================================
+   CHARTS
+   ============================================================ */
+function destroyChart(key) {
+  if (CHARTS[key]) { CHARTS[key].destroy(); CHARTS[key] = null; }
+}
+
+function renderCharts() {
+  renderMonthly();
+  renderCategory();
+  renderCostCenter();
+  renderSupplierRanking();
+  renderFuture();
+  renderCCRanking();
+}
+
+/* --- MONTHLY BAR CHART --- */
+function renderMonthly() {
+  destroyChart('monthly');
+
+  const nowYM = currentYM();
+  const byMonth = {};
+  active(S.allTxns)
+    .filter(t => fmt.ym(t.transactionDate) <= nowYM)
+    .forEach(t => {
+      const k = fmt.ym(t.transactionDate);
+      byMonth[k] = (byMonth[k]||0) + t.amountBrl;
+    });
+
+  /* Last 7 months */
+  const keys = Object.keys(byMonth).sort().slice(-7);
+  const selectedComp = S.filters.comp;
+
+  CHARTS.monthly = new Chart(
+    document.getElementById('c-monthly').getContext('2d'),
+    {
+      type: 'bar',
+      data: {
+        labels: keys.map(fmt.shortMonth),
+        datasets: [{
+          label: 'Gasto (R$)',
+          data:   keys.map(k => byMonth[k] || 0),
+          backgroundColor: keys.map(k =>
+            k === selectedComp ? PALETTE[0] : PALETTE[2]+'bb'
+          ),
+          borderRadius: 5,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => fmt.brl(c.raw) } }
+        },
+        scales: {
+          y: {
+            ticks: { callback: v => 'R$'+(v/1000).toFixed(0)+'k', font:{size:11} },
+            grid:  { color:'#f0f0f0' }
+          },
+          x: { ticks: { font:{size:11} }, grid: { display:false } }
+        }
+      }
+    }
+  );
+}
+
+/* --- CATEGORY DOUGHNUT --- */
+function renderCategory() {
+  destroyChart('category');
+
+  const bycat = {};
+  active(S.filtTxns).forEach(t => {
+    const n = t.category?.name || 'Sem categoria';
+    bycat[n] = (bycat[n]||0) + t.amountBrl;
+  });
+
+  const sorted = Object.entries(bycat).sort((a,b) => b[1]-a[1]);
+
+  CHARTS.category = new Chart(
+    document.getElementById('c-category').getContext('2d'),
+    {
+      type: 'doughnut',
+      data: {
+        labels: sorted.map(([k]) => k),
+        datasets: [{
+          data:            sorted.map(([,v]) => v),
+          backgroundColor: PALETTE.slice(0, sorted.length),
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position:'right', labels:{ font:{size:11}, padding:8, boxWidth:12 } },
+          tooltip: { callbacks: { label: c => `${c.label}: ${fmt.brl(c.raw)}` } }
+        }
+      }
+    }
+  );
+}
+
+/* --- COST CENTER HORIZONTAL BAR --- */
+function renderCostCenter() {
+  destroyChart('costcenter');
+
+  const bycc = {};
+  active(S.filtTxns).forEach(t => {
+    const n = t.costCenter?.name || 'Sem CC';
+    bycc[n] = (bycc[n]||0) + t.amountBrl;
+  });
+
+  const sorted = Object.entries(bycc).sort((a,b) => b[1]-a[1]).slice(0,8);
+
+  CHARTS.costcenter = new Chart(
+    document.getElementById('c-costcenter').getContext('2d'),
+    {
+      type: 'bar',
+      data: {
+        labels: sorted.map(([k]) => k),
+        datasets: [{
+          label: 'Valor (R$)',
+          data:  sorted.map(([,v]) => v),
+          backgroundColor: PALETTE.slice(0, sorted.length).map((c,i) => PALETTE[i%PALETTE.length]),
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display:false },
+          tooltip: { callbacks: { label: c => fmt.brl(c.raw) } }
+        },
+        scales: {
+          x: { ticks: { callback: v => 'R$'+(v/1000).toFixed(0)+'k', font:{size:11} }, grid:{color:'#f0f0f0'} },
+          y: { ticks: { font:{size:11} }, grid:{display:false} }
+        }
+      }
+    }
+  );
+}
+
+/* --- SUPPLIER RANKING --- */
+function renderSupplierRanking() {
+  const bymerch = {};
+  active(S.filtTxns).forEach(t => {
+    const n = cleanMerchant(t.merchant);
+    bymerch[n] = (bymerch[n]||0) + t.amountBrl;
+  });
+
+  const sorted = Object.entries(bymerch).sort((a,b) => b[1]-a[1]).slice(0,10);
+  const max = sorted[0]?.[1] || 1;
+
+  const comp = S.filters.comp;
+  sel('supplier-period').textContent = comp ? fmt.compLabel(comp) : 'Período completo';
+
+  sel('ranking-suppliers').innerHTML = sorted.length
+    ? sorted.map(([name,val],i) => `
+        <div class="ranking-item">
+          <div class="rank-num">${i+1}</div>
+          <div class="rank-name" title="${name}">${name}</div>
+          <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(val/max*100).toFixed(0)}%"></div></div>
+          <div class="rank-amount">${fmt.brl(val)}</div>
+        </div>`).join('')
+    : '<div class="empty"><p>Sem dados para o período.</p></div>';
+}
+
+/* --- FUTURE COMMITMENT CHART --- */
+function renderFuture() {
+  destroyChart('future');
+
+  const nowYM = currentYM();
+  /* Show current month + next 5 */
+  const months = Array.from({length:6}, (_,i) => fmt.addMonth(nowYM, i));
+
+  const current = months.map(m =>
+    m > nowYM ? 0 :
+    active(S.allTxns).filter(t => fmt.ym(t.transactionDate) === m).reduce((s,t)=>s+t.amountBrl,0)
+  );
+  const future = months.map(m =>
+    m <= nowYM ? 0 :
+    active(S.allTxns).filter(t => fmt.ym(t.transactionDate) === m).reduce((s,t)=>s+t.amountBrl,0)
+  );
+
+  CHARTS.future = new Chart(
+    document.getElementById('c-future').getContext('2d'),
+    {
+      type: 'bar',
+      data: {
+        labels: months.map(fmt.shortMonth),
+        datasets: [
+          {
+            label: 'Realizado',
+            data: current,
+            backgroundColor: PALETTE[0],
+            borderRadius: 4,
+            stack: 'stack'
+          },
+          {
+            label: 'Parcelas futuras',
+            data: future,
+            backgroundColor: PALETTE[2],
+            borderRadius: 4,
+            stack: 'stack'
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position:'top', labels:{ font:{size:11}, boxWidth:12 } },
+          tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt.brl(c.raw)}` } }
+        },
+        scales: {
+          x: { stacked:true, ticks:{font:{size:11}}, grid:{display:false} },
+          y: { stacked:true, ticks:{callback: v=>'R$'+(v/1000).toFixed(0)+'k',font:{size:11}}, grid:{color:'#f0f0f0'} }
+        }
+      }
+    }
+  );
+}
+
+/* --- COST CENTER RANKING --- */
+function renderCCRanking() {
+  const bycc = {};
+  active(S.filtTxns).forEach(t => {
+    const n = t.costCenter?.name || 'Sem CC';
+    bycc[n] = (bycc[n]||0) + t.amountBrl;
+  });
+
+  const sorted = Object.entries(bycc).sort((a,b) => b[1]-a[1]).slice(0,10);
+  const max = sorted[0]?.[1] || 1;
+
+  const comp = S.filters.comp;
+  sel('cc-period').textContent = comp ? fmt.compLabel(comp) : 'Período completo';
+
+  sel('ranking-cc').innerHTML = sorted.length
+    ? sorted.map(([name,val],i) => `
+        <div class="ranking-item">
+          <div class="rank-num" style="background:#e8f4ec;color:#304d3c">${i+1}</div>
+          <div class="rank-name">${name}</div>
+          <div class="rank-bar-wrap"><div class="rank-bar" style="width:${(val/max*100).toFixed(0)}%;background:#4a7a5e"></div></div>
+          <div class="rank-amount">${fmt.brl(val)}</div>
+        </div>`).join('')
+    : '<div class="empty"><p>Sem dados.</p></div>';
+}
+
+/* ============================================================
+   TRANSACTIONS TABLE
+   ============================================================ */
+function switchTab(tab) {
+  S.tab  = tab;
+  S.page = 1;
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['all','installments','future','canceled'][i] === tab);
+  });
+  renderTxnTable();
+}
+
+function tabTxns() {
+  const nowYM = currentYM();
+  switch(S.tab) {
+    case 'installments':
+      return S.filtTxns.filter(t =>
+        !t.isCanceled && (t.installment > 1 || (t._instTotal && t._instTotal > 1))
+      );
+    case 'future':
+      return S.filtTxns.filter(t =>
+        !t.isCanceled && fmt.ym(t.transactionDate) > nowYM
+      );
+    case 'canceled':
+      return S.filtTxns.filter(t => t.isCanceled || t.status === 'CANCELED');
+    default:
+      return S.filtTxns;
+  }
+}
+
+const STATUS_BADGE = {
+  PROCESSED: '<span class="badge b-green">Processada</span>',
+  PENDING:   '<span class="badge b-yellow">Pendente</span>',
+  CANCELED:  '<span class="badge b-red">Cancelada</span>'
+};
+
+const TYPE_LABEL = {
+  PURCHASE: 'Compra',
+  PURCHASE_INTERNATIONAL: 'Internacional',
+  REFUND: 'Estorno',
+  WITHDRAW: 'Saque',
+  INVOICE_PAYMENT: 'Pgto Fatura',
+  BILL_TARIFF: 'Tarifa'
+};
+
+function cleanMerchant(m) { return m.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim(); }
+
+function renderTxnTable() {
+  const txns  = tabTxns();
+  const total = txns.length;
+  const pages = Math.max(1, Math.ceil(total / S.pageSize));
+  S.page = Math.min(S.page, pages);
+  const start = (S.page-1) * S.pageSize;
+  const slice = txns.slice(start, start + S.pageSize);
+
+  sel('txn-count-lbl').textContent = `${total} transação${total !== 1 ? 'ões' : ''}`;
+
+  sel('txn-tbody').innerHTML = slice.length
+    ? slice.map(t => {
+        const isOut = t.operation === 'CASH_OUT';
+        const inst = t._instTotal
+          ? `<span class="badge b-purple">${t.installment}/${t._instTotal}</span>`
+          : (t.installment > 1 ? `<span class="badge b-purple">parc.${t.installment}</span>` : '—');
+        return `
+          <tr>
+            <td style="white-space:nowrap">${fmt.date(t.transactionDate)}</td>
+            <td class="merchant-cell">
+              <div class="merchant-name" title="${cleanMerchant(t.merchant)}">${cleanMerchant(t.merchant)}</div>
+              <div class="merchant-type">${TYPE_LABEL[t.type]||t.type}</div>
+            </td>
+            <td>
+              <div>${t.card.responsibleName}</div>
+              <small style="color:var(--text-muted)">${t.card.responsibleEmail}</small>
+            </td>
+            <td class="card-cell">
+              <div style="font-size:12px">${t.card.maskedNumber}</div>
+              <small>${t.card.type==='VIRTUAL'?'Virtual':'Físico'}</small>
+            </td>
+            <td><span class="badge b-gray">${t.category?.name||'—'}</span></td>
+            <td><span class="badge b-blue">${t.costCenter?.name||'—'}</span></td>
+            <td style="text-align:center">${inst}</td>
+            <td>${STATUS_BADGE[t.status]||`<span class="badge b-gray">${t.status}</span>`}</td>
+            <td style="text-align:right" class="${isOut?'amt-out':'amt-in'}">
+              ${isOut?'−':'+'}${fmt.brl(t.amountBrl)}
+            </td>
+          </tr>`;
+      }).join('')
+    : `<tr><td colspan="9"><div class="empty"><p>Nenhuma transação para os filtros selecionados.</p></div></td></tr>`;
+
+  sel('txn-footer-lbl').textContent =
+    slice.length
+      ? `Exibindo ${start+1}–${start+slice.length} de ${total}`
+      : '';
+
+  /* Pagination */
+  const pg = sel('txn-pages');
+  if (pages <= 1) { pg.innerHTML = ''; return; }
+  const maxPg = 7;
+  let html = '';
+  for (let p = 1; p <= Math.min(pages, maxPg); p++) {
+    html += `<button class="pg-btn${p===S.page?' active':''}" onclick="goPage(${p})">${p}</button>`;
+  }
+  if (pages > maxPg) html += `<span style="padding:4px 6px;color:var(--text-muted)">…${pages}</span>`;
+  pg.innerHTML = html;
+}
+
+function goPage(p) { S.page = p; renderTxnTable(); }
+
+/* ============================================================
+   INSTALLMENTS ANALYSIS TABLE
+   ============================================================ */
+function detectSeries(txns) {
+  /* Group by _purchaseId (demo) or merchant+amount+card (real API) */
+  const groups = {};
+  active(txns).forEach(t => {
+    const hasInst = t._instTotal > 1 || t.installment > 1;
+    if (!hasInst) return;
+    const key = t._purchaseId || `${t.card.id}|${cleanMerchant(t.merchant)}|${Math.round(t.amountBrl*100)}`;
+    if (!groups[key]) groups[key] = {
+      merchant: cleanMerchant(t.merchant),
+      card: t.card,
+      items: []
+    };
+    groups[key].items.push(t);
+  });
+
+  return Object.values(groups).map(g => {
+    g.items.sort((a,b) => new Date(a.transactionDate)-new Date(b.transactionDate));
+    return g;
+  });
+}
+
+function renderInstTable() {
+  const nowYM  = currentYM();
+  const series = detectSeries(S.allTxns);
+
+  if (!series.length) {
+    sel('inst-tbody').innerHTML =
+      `<tr><td colspan="9"><div class="empty"><p>Nenhuma compra parcelada identificada no período.</p></div></td></tr>`;
+    return;
+  }
+
+  /* Apply card / responsible filters */
+  const filtered = series.filter(s => {
+    if (S.filters.card && s.card.id !== S.filters.card) return false;
+    if (S.filters.resp && s.card.responsibleEmail !== S.filters.resp) return false;
+    return true;
+  });
+
+  sel('inst-tbody').innerHTML = filtered.map(s => {
+    const total     = s.items.length;
+    const paid      = s.items.filter(t => fmt.ym(t.transactionDate) <= nowYM).length;
+    const remaining = total - paid;
+    const amtPer    = s.items[0]?.amountBrl || 0;
+    const totalPaid = paid * amtPer;
+    const totalRem  = remaining * amtPer;
+    const nextYM    = fmt.addMonth(nowYM, 1);
+    const nextInst  = s.items.find(t => fmt.ym(t.transactionDate) === nextYM);
+
+    return `
+      <tr>
+        <td>
+          <div style="font-weight:600">${s.merchant}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${s.card.maskedNumber}</div>
+        </td>
+        <td>${s.card.responsibleName}</td>
+        <td style="font-size:11px;color:var(--text-muted)">${s.card.maskedNumber}</td>
+        <td><span class="badge b-blue">${paid}ª</span></td>
+        <td><span class="badge b-gray">${total}x</span></td>
+        <td style="text-align:right;font-weight:600">${fmt.brl(amtPer)}</td>
+        <td style="text-align:right" class="amt-out">${fmt.brl(totalPaid)}</td>
+        <td style="text-align:right" class="amt-out">${fmt.brl(totalRem)}</td>
+        <td style="text-align:right">
+          ${nextInst
+            ? `<span class="badge b-yellow">${fmt.brl(nextInst.amountBrl)}</span>`
+            : `<span style="color:var(--text-muted);font-size:12px">Quitado</span>`}
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+/* ============================================================
+   KEYBOARD SHORTCUT: press Enter on login
+   ============================================================ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') {
+    startLogin();
+  }
+});
+</script>
+</body>
+</html>
