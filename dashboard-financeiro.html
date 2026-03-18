@@ -832,7 +832,7 @@
     <div class="header-right">
       <span class="header-chip" id="header-chip">Dashboard Financeiro</span>
       <span class="header-chip" id="header-env-chip" style="display:none">SANDBOX</span>
-      <button class="btn-logout" onclick="cacheClear()" title="Limpar cache e buscar dados frescos">↺ Atualizar</button>
+      <button class="btn-logout" onclick="forceRefresh()" title="Buscar novas transações">↺ Atualizar</button>
       <button class="btn-logout" onclick="logout()">Sair</button>
     </div>
   </header>
@@ -1139,89 +1139,129 @@ async function fetchChunk(startDate, endDate) {
    CACHE — localStorage com TTL de 1 hora
    Chave: cs_cache_{apiKey}_{startDate}
    ============================================================ */
-const CACHE_TTL = 60 * 60 * 1000; // 1 hora em ms
 
-function cacheKey(startDate) {
-  return `cs_cache_${S.apiKey}_${startDate}`;
+/* Estrutura do cache:
+   { startDate, lastFetchDate, transactions[] }
+   - startDate:      data inicial configurada pelo usuário
+   - lastFetchDate:  último dia já buscado (para delta)
+   - transactions:   todas as transações acumuladas
+*/
+function cacheKey() {
+  return `cs_cache_v2_${S.apiKey}`;
 }
 
-function cacheLoad(startDate) {
+function cacheLoad() {
   try {
-    const raw = localStorage.getItem(cacheKey(startDate));
+    const raw = localStorage.getItem(cacheKey());
     if (!raw) return null;
-    const { ts, data } = JSON.parse(raw);
-    if (Date.now() - ts > CACHE_TTL) { localStorage.removeItem(cacheKey(startDate)); return null; }
-    return data;
+    return JSON.parse(raw);
   } catch { return null; }
 }
 
-function cacheSave(startDate, data) {
+function cacheSave(payload) {
   try {
-    localStorage.setItem(cacheKey(startDate), JSON.stringify({ ts: Date.now(), data }));
-  } catch { /* quota exceeded — ignora */ }
+    localStorage.setItem(cacheKey(), JSON.stringify(payload));
+  } catch(e) {
+    /* quota exceeded — tenta remover cache antigo e salvar novamente */
+    Object.keys(localStorage).filter(k => k.startsWith('cs_cache_')).forEach(k => localStorage.removeItem(k));
+    try { localStorage.setItem(cacheKey(), JSON.stringify(payload)); } catch { /* ignora */ }
+  }
 }
 
 function cacheClear() {
   Object.keys(localStorage).filter(k => k.startsWith('cs_cache_')).forEach(k => localStorage.removeItem(k));
-  notify('Cache limpo — próximo acesso buscará dados frescos.');
+  notify('Cache limpo — próximo acesso buscará todos os dados.');
+}
+
+function dedup(txns) {
+  const seen = new Set();
+  return txns.filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true; });
 }
 
 /* ============================================================
-   API: FETCH MULTIPLE CHUNKS (handles 62-day limit)
-   Chunks são buscados em PARALELO para máxima velocidade.
-   Paginação dentro de cada chunk permanece sequencial.
+   API: CARGA INTELIGENTE — histórico uma vez + delta incremental
+   ─────────────────────────────────────────────────────────────
+   1ª vez : busca startDate → hoje  (chunks em paralelo)
+   2ª vez+: busca lastFetchDate → hoje (só o delta)
    ============================================================ */
 async function fetchAll(startDateStr = '2026-01-01') {
-  /* 1. Tenta cache */
-  const cached = cacheLoad(startDateStr);
-  if (cached) {
-    showLoading('Carregando do cache...', 'Dados salvos da última sessão');
-    await new Promise(r => setTimeout(r, 300)); // pequeno delay visual
-    return cached;
+  await ensureToken();
+
+  const todayStr = today();
+  const cache    = cacheLoad();
+
+  /* ── CARGA INCREMENTAL: cache existe e é da mesma startDate ── */
+  if (cache && cache.startDate === startDateStr) {
+    const deltaFrom = cache.lastFetchDate; // último dia já buscado
+
+    if (deltaFrom >= todayStr) {
+      /* Dados já estão atualizados para hoje */
+      showLoading('Carregando do cache...', `${cache.transactions.length.toLocaleString('pt-BR')} transações salvas`);
+      await new Promise(r => setTimeout(r, 400));
+      return cache.transactions;
+    }
+
+    /* Busca apenas o delta: deltaFrom → hoje */
+    showLoading('Atualizando dados...', `Buscando novas transações desde ${deltaFrom}`);
+    const deltaChunks = buildChunks(deltaFrom, todayStr);
+    const deltaResults = await Promise.all(deltaChunks.map(c => fetchChunk(c.s, c.e)));
+    const newTxns = deltaResults.flat();
+
+    const merged = dedup([...cache.transactions, ...newTxns]);
+    cacheSave({ startDate: startDateStr, lastFetchDate: todayStr, transactions: merged });
+
+    notify(`+${newTxns.length} novas transações carregadas`);
+    return merged;
   }
 
-  /* 2. Monta range: startDate → hoje (sem meses futuros — parcelas futuras
-        já aparecem nas transações com datas à frente retornadas pela API) */
-  const start = new Date(startDateStr + 'T00:00:00Z');
-  const end   = new Date(); // hoje
+  /* ── CARGA COMPLETA: sem cache ou startDate mudou ── */
+  const chunks = buildChunks(startDateStr, todayStr);
+  showLoading(`Carga inicial — ${chunks.length} período(s) em paralelo...`, 'Isso acontece apenas na primeira vez');
+  const results = await Promise.all(chunks.map(c => fetchChunk(c.s, c.e)));
+  const all = dedup(results.flat());
 
-  /* 3. Divide em chunks de ≤59 dias */
+  cacheSave({ startDate: startDateStr, lastFetchDate: todayStr, transactions: all });
+  return all;
+}
+
+/* Monta array de chunks { s, e } respeitando o limite de 59 dias da API */
+function buildChunks(startStr, endStr) {
   const chunks = [];
-  let cur = new Date(start);
+  let cur = new Date(startStr + 'T00:00:00Z');
+  const end = new Date(endStr + 'T00:00:00Z');
   while (cur <= end) {
     const chunkEnd = new Date(cur);
     chunkEnd.setDate(chunkEnd.getDate() + 59);
     if (chunkEnd > end) chunkEnd.setTime(end.getTime());
-    chunks.push({
-      s: cur.toISOString().slice(0,10),
-      e: chunkEnd.toISOString().slice(0,10)
-    });
+    chunks.push({ s: cur.toISOString().slice(0,10), e: chunkEnd.toISOString().slice(0,10) });
     cur = new Date(chunkEnd);
     cur.setDate(cur.getDate() + 1);
   }
+  return chunks;
+}
 
-  /* 4. Autentica uma vez antes de disparar os chunks em paralelo */
-  showLoading('Autenticando...', '');
-  await ensureToken();
-
-  /* 5. Busca todos os chunks em PARALELO */
-  showLoading(`Buscando ${chunks.length} período(s) em paralelo...`, 'Isso pode levar alguns instantes');
-  const results = await Promise.all(
-    chunks.map(c => fetchChunk(c.s, c.e))
-  );
-
-  /* 6. Junta e deduplica */
-  const seen = new Set();
-  const all  = results.flat().filter(t => {
-    if (seen.has(t.id)) return false;
-    seen.add(t.id);
-    return true;
-  });
-
-  /* 7. Salva no cache */
-  cacheSave(startDateStr, all);
-
-  return all;
+/* Força busca do delta (novas transações desde o último fetch) */
+async function forceRefresh() {
+  if (!S.apiKey) return;
+  const startDate = (cacheLoad()?.startDate) || '2026-01-01';
+  try {
+    showLoading('Buscando novas transações...', '');
+    /* Invalida lastFetchDate para forçar delta a partir de ontem */
+    const cache = cacheLoad();
+    if (cache) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      cache.lastFetchDate = yesterday.toISOString().slice(0,10);
+      cacheSave(cache);
+    }
+    S.allTxns = await fetchAll(startDate);
+    hideLoading();
+    applyFilters();
+    notify('Dados atualizados!');
+  } catch(err) {
+    hideLoading();
+    notify('Erro ao atualizar: ' + err.message);
+  }
 }
 
 /* ============================================================
