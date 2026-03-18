@@ -797,13 +797,8 @@
         <input class="form-input" type="number" id="inp-limit" value="11300000" placeholder="11300000" />
       </div>
       <div class="form-group">
-        <label class="form-label">Período</label>
-        <select class="form-input" id="inp-months">
-          <option value="3">3 meses</option>
-          <option value="6" selected>6 meses</option>
-          <option value="9">9 meses</option>
-          <option value="12">12 meses</option>
-        </select>
+        <label class="form-label">Buscar a partir de</label>
+        <input class="form-input" type="date" id="inp-startdate" value="2026-01-01" />
       </div>
     </div>
 
@@ -1143,12 +1138,9 @@ async function fetchChunk(startDate, endDate) {
    API: FETCH MULTIPLE CHUNKS (handles 62-day limit)
    Fetches from (monthsBack) months ago to 3 months ahead.
    ============================================================ */
-async function fetchAll(monthsBack = 6) {
-  /* Build date range */
-  const todayStr = today();
-  const start = new Date();
-  start.setMonth(start.getMonth() - monthsBack);
-  start.setDate(1);
+async function fetchAll(startDateStr = '2026-01-01') {
+  /* Build date range: from startDateStr to 3 months ahead (for future installments) */
+  const start = new Date(startDateStr + 'T00:00:00Z');
 
   const end = new Date();
   end.setMonth(end.getMonth() + 3); /* +3 months ahead to capture future installments */
@@ -1187,7 +1179,7 @@ async function startLogin() {
   const apiKey    = document.getElementById('inp-apikey').value.trim();
   const apiSecret = document.getElementById('inp-apisecret').value.trim();
   const limit     = parseFloat(document.getElementById('inp-limit').value) || 0;
-  const months    = parseInt(document.getElementById('inp-months').value);
+  const startDate = document.getElementById('inp-startdate').value || '2026-01-01';
 
   if (!apiKey || !apiSecret) { showErr('Informe API Key e API Secret.'); return; }
 
@@ -1199,7 +1191,7 @@ async function startLogin() {
   try {
     showLoading('Autenticando...');
     await authenticate();
-    S.allTxns = await fetchAll(months);
+    S.allTxns = await fetchAll(startDate);
     hideLoading();
     document.getElementById('header-env-chip').style.display = '';
     initDashboard();
