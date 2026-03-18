@@ -832,6 +832,7 @@
     <div class="header-right">
       <span class="header-chip" id="header-chip">Dashboard Financeiro</span>
       <span class="header-chip" id="header-env-chip" style="display:none">SANDBOX</span>
+      <button class="btn-logout" onclick="cacheClear()" title="Limpar cache e buscar dados frescos">↺ Atualizar</button>
       <button class="btn-logout" onclick="logout()">Sair</button>
     </div>
   </header>
@@ -1135,20 +1136,59 @@ async function fetchChunk(startDate, endDate) {
 }
 
 /* ============================================================
+   CACHE — localStorage com TTL de 1 hora
+   Chave: cs_cache_{apiKey}_{startDate}
+   ============================================================ */
+const CACHE_TTL = 60 * 60 * 1000; // 1 hora em ms
+
+function cacheKey(startDate) {
+  return `cs_cache_${S.apiKey}_${startDate}`;
+}
+
+function cacheLoad(startDate) {
+  try {
+    const raw = localStorage.getItem(cacheKey(startDate));
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL) { localStorage.removeItem(cacheKey(startDate)); return null; }
+    return data;
+  } catch { return null; }
+}
+
+function cacheSave(startDate, data) {
+  try {
+    localStorage.setItem(cacheKey(startDate), JSON.stringify({ ts: Date.now(), data }));
+  } catch { /* quota exceeded — ignora */ }
+}
+
+function cacheClear() {
+  Object.keys(localStorage).filter(k => k.startsWith('cs_cache_')).forEach(k => localStorage.removeItem(k));
+  notify('Cache limpo — próximo acesso buscará dados frescos.');
+}
+
+/* ============================================================
    API: FETCH MULTIPLE CHUNKS (handles 62-day limit)
-   Fetches from (monthsBack) months ago to 3 months ahead.
+   Chunks são buscados em PARALELO para máxima velocidade.
+   Paginação dentro de cada chunk permanece sequencial.
    ============================================================ */
 async function fetchAll(startDateStr = '2026-01-01') {
-  /* Build date range: from startDateStr to 3 months ahead (for future installments) */
+  /* 1. Tenta cache */
+  const cached = cacheLoad(startDateStr);
+  if (cached) {
+    showLoading('Carregando do cache...', 'Dados salvos da última sessão');
+    await new Promise(r => setTimeout(r, 300)); // pequeno delay visual
+    return cached;
+  }
+
+  /* 2. Monta range: startDate → hoje (sem meses futuros — parcelas futuras
+        já aparecem nas transações com datas à frente retornadas pela API) */
   const start = new Date(startDateStr + 'T00:00:00Z');
+  const end   = new Date(); // hoje
 
-  const end = new Date();
-  end.setMonth(end.getMonth() + 3); /* +3 months ahead to capture future installments */
-
-  /* Split into ≤60-day chunks */
+  /* 3. Divide em chunks de ≤59 dias */
   const chunks = [];
   let cur = new Date(start);
-  while (cur < end) {
+  while (cur <= end) {
     const chunkEnd = new Date(cur);
     chunkEnd.setDate(chunkEnd.getDate() + 59);
     if (chunkEnd > end) chunkEnd.setTime(end.getTime());
@@ -1160,16 +1200,28 @@ async function fetchAll(startDateStr = '2026-01-01') {
     cur.setDate(cur.getDate() + 1);
   }
 
-  /* Fetch all chunks in sequence (token may expire between chunks) */
-  const all = [];
-  for (const c of chunks) {
-    const txns = await fetchChunk(c.s, c.e);
-    all.push(...txns);
-  }
+  /* 4. Autentica uma vez antes de disparar os chunks em paralelo */
+  showLoading('Autenticando...', '');
+  await ensureToken();
 
-  /* Deduplicate by ID */
+  /* 5. Busca todos os chunks em PARALELO */
+  showLoading(`Buscando ${chunks.length} período(s) em paralelo...`, 'Isso pode levar alguns instantes');
+  const results = await Promise.all(
+    chunks.map(c => fetchChunk(c.s, c.e))
+  );
+
+  /* 6. Junta e deduplica */
   const seen = new Set();
-  return all.filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true; });
+  const all  = results.flat().filter(t => {
+    if (seen.has(t.id)) return false;
+    seen.add(t.id);
+    return true;
+  });
+
+  /* 7. Salva no cache */
+  cacheSave(startDateStr, all);
+
+  return all;
 }
 
 /* ============================================================
